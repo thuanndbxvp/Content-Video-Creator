@@ -543,25 +543,35 @@ export const generateAllVisualPrompts = async (script: string): Promise<AllVisua
 
 export const generateVideoPlan = async (script: string): Promise<VideoPlan> => {
     const prompt = `
-        You are an "Expert Scriptwriter and AI Video Prompt Specialist". Your task is to analyze the following script and break it down into a detailed production plan for an AI video generator. Each scene must be designed for an 8-second video clip.
+        You are an "Expert Scriptwriter, Character Designer, and AI Video Prompt Specialist". Your primary task is to ensure CHARACTER AND SCENE CONSISTENCY throughout the entire video production plan. Analyze the following script and break it down into a detailed plan for an AI video generator. Each scene must be designed for an 8-second video clip.
 
         **Input Script:**
         """
         ${script}
         """
 
-        **Output Requirements:**
-        You must return a single JSON object. The root object must contain:
-        1.  A "scriptSummary" key with a concise Vietnamese summary of the entire script's plot.
-        2.  A "parts" key, which is an array of objects. Each object represents a main part of the script (identified by markdown headings like ## or ###).
-            - Each part object must have a "partTitle" (the heading text) and a "scenes" array.
-            - Each object in the "scenes" array represents a single 8-second clip and MUST contain the following keys:
-                a. "sceneNumber": The sequential number of the scene within the part (starts from 1).
-                b. "detailedDescription": A detailed Vietnamese description of the scene's action, setting, lighting, and camera angles.
-                c. "imagePrompt": An object with "english" and "vietnamese" keys. The "english" prompt is for AI Image Generators (like Whisk, Gemini). It must be highly detailed, optimized for quality (e.g., 8K, Cinematic, Hyper-realistic), and include specific art styles, camera lenses, and lighting.
-                d. "motionPrompt": An object with "english" and "vietnamese" keys. The "english" prompt is for AI Motion Generators (like Veo 3.1). It must describe the exact camera movement (e.g., slow pan left, dolly zoom in), character/object motion (e.g., subtle head turn, leaves rustling), and visual effects (e.g., lens flare, cinematic dust particles) based on the generated image.
+        **CRITICAL INSTRUCTIONS:**
 
-        Please generate the complete, structured JSON output now.
+        1.  **Create a Character Bible:** Before doing anything else, create a definitive "Character Bible". Define the main character(s) with specific, unchangeable details: name, age, physical appearance, exact clothing, and key features. This bible is the single source of truth for the character's look.
+        2.  **Maintain Consistency:** Every single prompt you generate MUST strictly adhere to the Character Bible. The character's appearance and clothing must not change between scenes unless explicitly stated in the script.
+        3.  **Deconstruct into Scenes:** Break down the script into logical parts (based on ## headings) and then into smaller 8-second scenes.
+
+        **OUTPUT REQUIREMENTS:**
+        You must return a single JSON object with the following structure:
+
+        -   **"characterBible" (string):** The detailed Character Bible you created, written in Vietnamese for the user's reference.
+        -   **"scriptSummary" (string):** A concise Vietnamese summary of the entire script's plot.
+        -   **"parts" (array of objects):**
+            -   Each object represents a main part of the script.
+            -   **"partTitle" (string):** The heading text of the script part.
+            -   **"scenes" (array of objects):**
+                -   Each object represents a single 8-second clip.
+                -   **"sceneNumber" (number):** Sequential number of the scene within the part.
+                -   **"scriptExcerpt" (string):** The exact, corresponding Vietnamese script text for this 8-second scene.
+                -   **"imagePrompt" (object):** With "english" and "vietnamese" keys. The English prompt is for an AI Image Generator. It must be highly detailed, cinematic (8K, Hyper-realistic), and reference specific camera lenses and lighting. **IT MUST USE THE CHARACTER DESCRIPTION FROM THE BIBLE.**
+                -   **"motionPrompt" (object):** With "english" and "vietnamese" keys. The English prompt must be a complete, self-contained directive for an AI Video Generator (like Veo3, Flow). It should generate an 8-second video clip directly. It MUST integrate all visual details (character from the Bible, environment, lighting, mood) and specific instructions for camera movement and character actions. This prompt must NOT rely on a separate image prompt.
+
+        Generate the complete, structured JSON output now, with maximum consistency.
     `;
 
     const promptPairSchema = {
@@ -583,6 +593,10 @@ export const generateVideoPlan = async (script: string): Promise<VideoPlan> => {
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
+                        characterBible: {
+                            type: Type.STRING,
+                            description: "A detailed Character Bible in Vietnamese describing the main character's consistent appearance."
+                        },
                         scriptSummary: {
                             type: Type.STRING,
                             description: "A concise Vietnamese summary of the entire script's plot."
@@ -605,14 +619,14 @@ export const generateVideoPlan = async (script: string): Promise<VideoPlan> => {
                                                     type: Type.NUMBER,
                                                     description: "The sequential number of the scene within the part."
                                                 },
-                                                detailedDescription: {
+                                                scriptExcerpt: {
                                                     type: Type.STRING,
-                                                    description: "A detailed Vietnamese description of the scene's action, setting, lighting, and camera angles."
+                                                    description: "The exact corresponding Vietnamese script text for this scene."
                                                 },
                                                 imagePrompt: promptPairSchema,
                                                 motionPrompt: promptPairSchema,
                                             },
-                                            required: ['sceneNumber', 'detailedDescription', 'imagePrompt', 'motionPrompt']
+                                            required: ['sceneNumber', 'scriptExcerpt', 'imagePrompt', 'motionPrompt']
                                         }
                                     }
                                 },
@@ -620,13 +634,13 @@ export const generateVideoPlan = async (script: string): Promise<VideoPlan> => {
                             }
                         }
                     },
-                    required: ['scriptSummary', 'parts']
+                    required: ['characterBible', 'scriptSummary', 'parts']
                 }
             }
         });
 
         const jsonResponse = JSON.parse(response.text);
-        if (jsonResponse.scriptSummary && Array.isArray(jsonResponse.parts)) {
+        if (jsonResponse.characterBible && jsonResponse.scriptSummary && Array.isArray(jsonResponse.parts)) {
             return jsonResponse as VideoPlan;
         } else {
             throw new Error("AI returned data in an unexpected format.");

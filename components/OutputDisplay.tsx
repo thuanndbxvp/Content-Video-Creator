@@ -29,10 +29,10 @@ interface OutputDisplayProps {
   onGenerateVisualPrompt: (scene: string) => void;
   onGenerateAllVisualPrompts: () => void;
   isGeneratingAllVisualPrompts: boolean;
-  onConvertToVideo: () => void;
-  isConvertingToVideo: boolean;
-  conversionError: string | null;
-  hasConvertedToVideo: boolean;
+  onGenerateVideoPlan: () => void;
+  isGeneratingVideoPlan: boolean;
+  videoPlanError: string | null;
+  hasGeneratedVideoPlan: boolean;
   scriptType: ScriptType;
   hasExtractedDialogue: boolean;
   hasGeneratedAllVisualPrompts: boolean;
@@ -93,7 +93,7 @@ export const OutputDisplay: React.FC<OutputDisplayProps> = ({
     revisionPrompt, setRevisionPrompt, onRevise, revisionCount,
     onExtractDialogue, isExtracting, onGenerateVisualPrompt,
     onGenerateAllVisualPrompts, isGeneratingAllVisualPrompts,
-    onConvertToVideo, isConvertingToVideo, conversionError, hasConvertedToVideo,
+    onGenerateVideoPlan, isGeneratingVideoPlan, videoPlanError, hasGeneratedVideoPlan,
     scriptType,
     hasExtractedDialogue, hasGeneratedAllVisualPrompts, hasSavedToLibrary,
     visualPromptsCache
@@ -257,7 +257,7 @@ export const OutputDisplay: React.FC<OutputDisplayProps> = ({
         {showActionControls && !isOutline && (
             <div className="p-4 border-t border-primary bg-primary/30">
                 <h3 className="text-md font-semibold text-text-primary mb-2">Công cụ Kịch bản</h3>
-                {conversionError && <p className="text-red-400 text-sm mb-2">{conversionError}</p>}
+                {videoPlanError && <p className="text-red-400 text-sm mb-2">{videoPlanError}</p>}
                 <textarea
                     rows={3}
                     className="w-full bg-primary/70 border border-secondary rounded-md p-2 text-text-primary focus:ring-2 focus:ring-accent focus:border-accent transition"
@@ -276,11 +276,11 @@ export const OutputDisplay: React.FC<OutputDisplayProps> = ({
                         Sửa Kịch bản
                     </button>
                      <button
-                        onClick={onConvertToVideo}
-                        disabled={isLoading || isConvertingToVideo}
+                        onClick={onGenerateVideoPlan}
+                        disabled={isLoading || isGeneratingVideoPlan}
                         className="flex-1 flex items-center justify-center bg-accent hover:bg-indigo-500 disabled:bg-indigo-400/50 text-white font-bold py-2 px-4 rounded-lg transition"
                     >
-                        {isConvertingToVideo ? (
+                        {isGeneratingVideoPlan ? (
                             <>
                                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -294,7 +294,7 @@ export const OutputDisplay: React.FC<OutputDisplayProps> = ({
                                 Chuyển kịch bản thành Video
                             </>
                         )}
-                        {hasConvertedToVideo && !isConvertingToVideo && <CheckIcon className="w-5 h-5 text-green-400 ml-2" />}
+                        {hasGeneratedVideoPlan && !isGeneratingVideoPlan && <CheckIcon className="w-5 h-5 text-green-400 ml-2" />}
                     </button>
                 </div>
             </div>

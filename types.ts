@@ -29,7 +29,7 @@ export interface PromptPair {
 
 export interface SceneSummary {
   sceneNumber: number;
-  detailedDescription: string;
+  scriptExcerpt: string; // Changed from detailedDescription
   imagePrompt: PromptPair;
   motionPrompt: PromptPair;
 }
@@ -40,6 +40,7 @@ export interface ScriptPartSummary {
 }
 
 export interface VideoPlan {
+  characterBible: string; // Added for consistency
   scriptSummary: string;
   parts: ScriptPartSummary[];
 }

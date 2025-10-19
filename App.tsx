@@ -80,10 +80,10 @@ const App: React.FC = () => {
   const [isGeneratingAllVisualPrompts, setIsGeneratingAllVisualPrompts] = useState<boolean>(false);
   const [allVisualPromptsError, setAllVisualPromptsError] = useState<string | null>(null);
 
-  // State for video generation tab
+  // Unified state for video plan generation
   const [videoPlanData, setVideoPlanData] = useState<VideoPlan | null>(null);
-  const [isConvertingToVideo, setIsConvertingToVideo] = useState<boolean>(false);
-  const [conversionError, setConversionError] = useState<string | null>(null);
+  const [isGeneratingVideoPlan, setIsGeneratingVideoPlan] = useState<boolean>(false);
+  const [videoPlanError, setVideoPlanError] = useState<string | null>(null);
 
 
   // Caching states
@@ -95,7 +95,6 @@ const App: React.FC = () => {
   // Action completion states
   const [hasExtractedDialogue, setHasExtractedDialogue] = useState<boolean>(false);
   const [hasGeneratedAllVisualPrompts, setHasGeneratedAllVisualPrompts] = useState<boolean>(false);
-  const [hasGeneratedVideoPlan, setHasGeneratedVideoPlan] = useState<boolean>(false);
   const [hasSavedToLibrary, setHasSavedToLibrary] = useState<boolean>(false);
 
 
@@ -124,7 +123,6 @@ const App: React.FC = () => {
     setExtractedDialogueCache(null);
     setHasExtractedDialogue(false);
     setHasGeneratedAllVisualPrompts(false);
-    setHasGeneratedVideoPlan(false);
     setHasSavedToLibrary(false);
     setVideoPlanData(null);
   };
@@ -183,7 +181,7 @@ const App: React.FC = () => {
         extractedDialogue: extractedDialogueCache,
         hasExtractedDialogue,
         hasGeneratedAllVisualPrompts,
-        hasSummarizedScript: hasGeneratedVideoPlan,
+        hasSummarizedScript: !!videoPlanCache,
     };
 
     const newItem: LibraryItem = {
@@ -200,7 +198,7 @@ const App: React.FC = () => {
   }, [
     generatedScript, topic, library, visualPromptsCache, allVisualPromptsCache, 
     videoPlanCache, extractedDialogueCache, hasExtractedDialogue, 
-    hasGeneratedAllVisualPrompts, hasGeneratedVideoPlan
+    hasGeneratedAllVisualPrompts
   ]);
 
   const handleDeleteScript = useCallback((id: number) => {
@@ -224,7 +222,6 @@ const App: React.FC = () => {
         setExtractedDialogueCache(item.cachedData.extractedDialogue);
         setHasExtractedDialogue(item.cachedData.hasExtractedDialogue);
         setHasGeneratedAllVisualPrompts(item.cachedData.hasGeneratedAllVisualPrompts);
-        setHasGeneratedVideoPlan(item.cachedData.hasSummarizedScript);
     }
     
     setHasSavedToLibrary(true); // Since it's loaded from the library, it's considered saved.
@@ -490,34 +487,57 @@ const App: React.FC = () => {
     }
   }, [generatedScript, allVisualPromptsCache, visualPromptsCache]);
   
-  const handleConvertToVideo = useCallback(async () => {
+  const handleGenerateVideoPlanFromScriptTab = useCallback(async () => {
     if (!generatedScript.trim()) return;
     
-    // Use cache if available
     if (videoPlanCache) {
         setVideoPlanData(videoPlanCache);
         setActiveTab('video');
         return;
     }
 
-    setIsConvertingToVideo(true);
+    setIsGeneratingVideoPlan(true);
     setVideoPlanData(null);
-    setConversionError(null);
+    setVideoPlanError(null);
+    setActiveTab('video');
     
     try {
         const plan = await generateVideoPlan(generatedScript);
         setVideoPlanData(plan);
-        setVideoPlanCache(plan); // Save to cache
-        setHasGeneratedVideoPlan(true);
-        setActiveTab('video'); // Switch to video tab on success
+        setVideoPlanCache(plan);
     } catch(err) {
-        setConversionError(err instanceof Error ? err.message : 'Lỗi không xác định khi chuyển đổi kịch bản.');
-        // Don't switch tab on error, maybe show an error toast/message later.
+        setVideoPlanError(err instanceof Error ? err.message : 'Lỗi không xác định khi chuyển đổi kịch bản.');
     } finally {
-        setIsConvertingToVideo(false);
+        setIsGeneratingVideoPlan(false);
     }
   }, [generatedScript, videoPlanCache]);
 
+  const handleGenerateVideoPlanFromCustomScript = useCallback(async (script: string) => {
+    if (!script.trim()) {
+        setVideoPlanError("Vui lòng dán kịch bản vào ô trống.");
+        return;
+    }
+
+    setIsGeneratingVideoPlan(true);
+    setVideoPlanData(null);
+    setVideoPlanError(null);
+    
+    try {
+        const plan = await generateVideoPlan(script);
+        setVideoPlanData(plan);
+        setVideoPlanCache(plan);
+    } catch(err) {
+        setVideoPlanError(err instanceof Error ? err.message : 'Lỗi không xác định khi tạo kế hoạch video.');
+    } finally {
+        setIsGeneratingVideoPlan(false);
+    }
+  }, []);
+
+  const handleClearVideoPlan = useCallback(() => {
+    setVideoPlanData(null);
+    setVideoPlanCache(null);
+    setVideoPlanError(null);
+  }, []);
 
   useEffect(() => {
     if (isGeneratingSequentially && currentPartIndex === 0 && generatedScript === '' && outlineParts.length > 0) {
@@ -631,10 +651,10 @@ const App: React.FC = () => {
                   onGenerateVisualPrompt={withApiKeyCheck(handleGenerateVisualPrompt)}
                   onGenerateAllVisualPrompts={withApiKeyCheck(handleGenerateAllVisualPrompts)}
                   isGeneratingAllVisualPrompts={isGeneratingAllVisualPrompts}
-                  onConvertToVideo={withApiKeyCheck(handleConvertToVideo)}
-                  isConvertingToVideo={isConvertingToVideo}
-                  conversionError={conversionError}
-                  hasConvertedToVideo={!!videoPlanData}
+                  onGenerateVideoPlan={withApiKeyCheck(handleGenerateVideoPlanFromScriptTab)}
+                  isGeneratingVideoPlan={isGeneratingVideoPlan}
+                  videoPlanError={videoPlanError}
+                  hasGeneratedVideoPlan={!!videoPlanData}
                   scriptType={scriptType}
                   hasExtractedDialogue={hasExtractedDialogue}
                   hasGeneratedAllVisualPrompts={hasGeneratedAllVisualPrompts}
@@ -646,7 +666,13 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'video' && (
-            <VideoGeneratorTab videoPlan={videoPlanData} />
+            <VideoGeneratorTab 
+              videoPlan={videoPlanData}
+              onGeneratePlan={withApiKeyCheck(handleGenerateVideoPlanFromCustomScript)}
+              isGenerating={isGeneratingVideoPlan}
+              generationError={videoPlanError}
+              onClearPlan={handleClearVideoPlan}
+            />
         )}
       </main>
       

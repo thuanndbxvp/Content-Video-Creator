@@ -3,19 +3,85 @@ import type { VideoPlan } from '../types';
 import { FilmIcon } from './icons/FilmIcon';
 import { ClipboardIcon } from './icons/ClipboardIcon';
 import { CameraIcon } from './icons/CameraIcon';
+import { UserCircleIcon } from './icons/UserCircleIcon';
+import { ArrowPathIcon } from './icons/ArrowPathIcon';
+
+interface VideoPlanGeneratorFormProps {
+    onGeneratePlan: (script: string) => void;
+    isGenerating: boolean;
+    generationError: string | null;
+}
+
+const VideoPlanGeneratorForm: React.FC<VideoPlanGeneratorFormProps> = ({ onGeneratePlan, isGenerating, generationError }) => {
+    const [customScript, setCustomScript] = useState('');
+
+    const handleSubmit = () => {
+        onGeneratePlan(customScript);
+    };
+
+    return (
+        <div className="bg-secondary p-6 rounded-lg shadow-xl max-w-4xl mx-auto">
+            <div className="text-center mb-6">
+                 <FilmIcon className="w-16 h-16 mx-auto mb-4 text-accent/50" />
+                 <h2 className="text-2xl font-bold text-accent">Tạo Kế hoạch Video từ Kịch bản có sẵn</h2>
+                 <p className="text-text-secondary mt-2">
+                    Dán kịch bản video của bạn vào đây. AI sẽ phân tích và tạo một storyboard chi tiết để bạn sản xuất.
+                </p>
+            </div>
+            
+            <textarea
+                value={customScript}
+                onChange={(e) => setCustomScript(e.target.value)}
+                rows={15}
+                className="w-full bg-primary/70 border border-secondary rounded-md p-3 text-text-primary focus:ring-2 focus:ring-accent focus:border-accent transition"
+                placeholder="Dán toàn bộ kịch bản của bạn vào đây..."
+                disabled={isGenerating}
+            />
+
+            <button
+                onClick={handleSubmit}
+                disabled={isGenerating || !customScript.trim()}
+                className="w-full mt-4 flex items-center justify-center bg-accent hover:bg-indigo-500 disabled:bg-indigo-400/50 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform duration-200 ease-in-out transform hover:scale-105"
+            >
+                 {isGenerating ? (
+                    <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Đang phân tích và tạo kế hoạch...</span>
+                    </>
+                ) : (
+                    <>
+                        <FilmIcon className="w-5 h-5 mr-2" />
+                        <span>Tạo Kế hoạch Video</span>
+                    </>
+                )}
+            </button>
+            
+            {isGenerating && !customScript && (
+                <div className="text-center mt-4">
+                    <p className="text-text-secondary">Đang xử lý kế hoạch video từ tab Kịch bản...</p>
+                </div>
+            )}
+            
+            {generationError && (
+                <div className="mt-4 bg-red-900/50 text-red-400 p-3 rounded-md text-sm text-center">
+                    <p>{generationError}</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 interface VideoGeneratorTabProps {
   videoPlan: VideoPlan | null;
+  onGeneratePlan: (script: string) => void;
+  isGenerating: boolean;
+  generationError: string | null;
+  onClearPlan: () => void;
 }
-
-const Placeholder: React.FC = () => (
-    <div className="text-center text-text-secondary bg-secondary p-10 rounded-lg">
-        <FilmIcon className="w-16 h-16 mx-auto mb-4 text-accent/50" />
-        <h2 className="text-xl font-bold text-text-primary mb-2">Khu vực Tạo Video</h2>
-        <p>Để bắt đầu, hãy tạo một kịch bản trong tab "Kịch bản", sau đó nhấn nút "Chuyển kịch bản thành Video".</p>
-        <p>AI sẽ phân tích kịch bản của bạn thành các cảnh quay chi tiết và hiển thị chúng ở đây.</p>
-    </div>
-);
 
 const CopyButton: React.FC<{ text: string }> = ({ text }) => {
     const [copied, setCopied] = useState(false);
@@ -45,9 +111,13 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-export const VideoGeneratorTab: React.FC<VideoGeneratorTabProps> = ({ videoPlan }) => {
-  if (!videoPlan || videoPlan.parts.length === 0) {
-    return <Placeholder />;
+export const VideoGeneratorTab: React.FC<VideoGeneratorTabProps> = ({ videoPlan, onGeneratePlan, isGenerating, generationError, onClearPlan }) => {
+  if (!videoPlan || isGenerating) {
+    return <VideoPlanGeneratorForm 
+        onGeneratePlan={onGeneratePlan}
+        isGenerating={isGenerating}
+        generationError={generationError}
+    />;
   }
   
   const totalScenes = videoPlan.parts.reduce((acc, part) => acc + part.scenes.length, 0);
@@ -55,8 +125,27 @@ export const VideoGeneratorTab: React.FC<VideoGeneratorTabProps> = ({ videoPlan 
   return (
     <div className="bg-secondary p-4 sm:p-6 rounded-lg shadow-xl space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-accent mb-3">Tổng quan Kịch bản</h2>
+        <div className="flex justify-between items-center flex-wrap gap-2 mb-3">
+            <h2 className="text-2xl font-bold text-accent">Tổng quan Kế hoạch Video</h2>
+            <button 
+                onClick={onClearPlan}
+                className="flex items-center gap-2 px-4 py-2 bg-primary/70 hover:bg-primary text-text-secondary font-semibold rounded-lg transition-colors text-sm"
+                aria-label="Tạo kế hoạch mới"
+            >
+                <ArrowPathIcon className="w-4 h-4" />
+                <span>Tạo kế hoạch mới</span>
+            </button>
+        </div>
+        
+        <h3 className="text-lg font-semibold text-text-primary mt-6 mb-2 flex items-center gap-2">
+            <UserCircleIcon className="w-6 h-6 text-accent"/>
+            Character Bible (Hồ sơ Nhân vật)
+        </h3>
+        <p className="text-text-secondary bg-primary/50 p-4 rounded-lg border border-secondary whitespace-pre-wrap font-mono text-sm">{videoPlan.characterBible}</p>
+
+        <h3 className="text-lg font-semibold text-text-primary mt-6 mb-2">Tóm tắt Kịch bản</h3>
         <p className="text-text-secondary bg-primary/50 p-4 rounded-lg border border-secondary">{videoPlan.scriptSummary}</p>
+        
         <p className="text-sm text-text-secondary mt-3 text-right">Tổng thời lượng dự kiến: <span className="font-bold text-text-primary">{totalScenes * 8} giây</span> ({totalScenes} cảnh)</p>
       </div>
 
@@ -71,13 +160,13 @@ export const VideoGeneratorTab: React.FC<VideoGeneratorTabProps> = ({ videoPlan 
                       <p className="font-bold text-accent text-xl">Cảnh {partIndex + 1}.{scene.sceneNumber}</p>
                       <p className="text-sm text-text-secondary mb-3">~8 giây</p>
                       <div className="w-full aspect-video bg-primary flex items-center justify-center rounded-md border border-secondary">
-                          <FilmIcon className="w-12 h-12 text-secondary" />
+                          <CameraIcon className="w-12 h-12 text-secondary" />
                       </div>
                   </div>
 
                   <div className="lg:col-span-3">
-                       <h4 className="text-base font-semibold text-text-primary mb-2">Mô tả Kịch bản</h4>
-                       <p className="text-sm text-text-secondary leading-relaxed">{scene.detailedDescription}</p>
+                       <h4 className="text-base font-semibold text-text-primary mb-2">Trích đoạn Kịch bản</h4>
+                       <p className="text-sm text-text-secondary leading-relaxed italic bg-primary/50 p-3 rounded-md border-l-4 border-accent/50">"{scene.scriptExcerpt}"</p>
                   </div>
 
                   <div className="lg:col-span-7 space-y-4">
@@ -114,3 +203,10 @@ export const VideoGeneratorTab: React.FC<VideoGeneratorTabProps> = ({ videoPlan 
     </div>
   );
 };
+
+// Add the UserCircleIcon component used in the tab
+const UserCircleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+);
