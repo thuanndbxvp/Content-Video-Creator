@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { OutputDisplay } from './components/OutputDisplay';
@@ -8,8 +7,8 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { VisualPromptModal } from './components/VisualPromptModal';
 import { AllVisualPromptsModal } from './components/AllVisualPromptsModal';
 import { VideoGeneratorTab } from './components/VideoGeneratorTab';
-import { generateScript, generateScriptOutline, generateTopicSuggestions, reviseScript, generateScriptPart, extractDialogue, generateKeywordSuggestions, validateApiKey, generateVisualPrompt, generateAllVisualPrompts, summarizeScriptForScenes, suggestStyleOptions } from './services/geminiService';
-import type { StyleOptions, FormattingOptions, LibraryItem, GenerationParams, VisualPrompt, AllVisualPromptsResult, ScriptPartSummary, ScriptType, NumberOfSpeakers, CachedData } from './types';
+import { generateScript, generateScriptOutline, generateTopicSuggestions, reviseScript, generateScriptPart, extractDialogue, generateKeywordSuggestions, validateApiKey, generateVisualPrompt, generateAllVisualPrompts, generateVideoPlan, suggestStyleOptions } from './services/geminiService';
+import type { StyleOptions, FormattingOptions, LibraryItem, GenerationParams, VisualPrompt, AllVisualPromptsResult, VideoPlan, ScriptType, NumberOfSpeakers, CachedData } from './types';
 import { TONE_OPTIONS, STYLE_OPTIONS, VOICE_OPTIONS, LANGUAGE_OPTIONS } from './constants';
 import { BookOpenIcon } from './components/icons/BookOpenIcon';
 
@@ -82,7 +81,7 @@ const App: React.FC = () => {
   const [allVisualPromptsError, setAllVisualPromptsError] = useState<string | null>(null);
 
   // State for video generation tab
-  const [videoSceneData, setVideoSceneData] = useState<ScriptPartSummary[] | null>(null);
+  const [videoPlanData, setVideoPlanData] = useState<VideoPlan | null>(null);
   const [isConvertingToVideo, setIsConvertingToVideo] = useState<boolean>(false);
   const [conversionError, setConversionError] = useState<string | null>(null);
 
@@ -90,13 +89,13 @@ const App: React.FC = () => {
   // Caching states
   const [visualPromptsCache, setVisualPromptsCache] = useState<Map<string, VisualPrompt>>(new Map());
   const [allVisualPromptsCache, setAllVisualPromptsCache] = useState<AllVisualPromptsResult[] | null>(null);
-  const [summarizedScriptCache, setSummarizedScriptCache] = useState<ScriptPartSummary[] | null>(null);
+  const [videoPlanCache, setVideoPlanCache] = useState<VideoPlan | null>(null);
   const [extractedDialogueCache, setExtractedDialogueCache] = useState<string | null>(null);
 
   // Action completion states
   const [hasExtractedDialogue, setHasExtractedDialogue] = useState<boolean>(false);
   const [hasGeneratedAllVisualPrompts, setHasGeneratedAllVisualPrompts] = useState<boolean>(false);
-  const [hasSummarizedScript, setHasSummarizedScript] = useState<boolean>(false);
+  const [hasGeneratedVideoPlan, setHasGeneratedVideoPlan] = useState<boolean>(false);
   const [hasSavedToLibrary, setHasSavedToLibrary] = useState<boolean>(false);
 
 
@@ -112,8 +111,6 @@ const App: React.FC = () => {
         if (Array.isArray(parsedKeys)) {
             setApiKeys(parsedKeys);
         }
-      } else {
-        setIsApiKeyModalOpen(true);
       }
     } catch (e) {
       console.error("Failed to load data from localStorage", e);
@@ -123,29 +120,51 @@ const App: React.FC = () => {
   const resetCachesAndStates = () => {
     setVisualPromptsCache(new Map());
     setAllVisualPromptsCache(null);
-    setSummarizedScriptCache(null);
+    setVideoPlanCache(null);
     setExtractedDialogueCache(null);
     setHasExtractedDialogue(false);
     setHasGeneratedAllVisualPrompts(false);
-    setHasSummarizedScript(false);
+    setHasGeneratedVideoPlan(false);
     setHasSavedToLibrary(false);
-    setVideoSceneData(null);
+    setVideoPlanData(null);
   };
 
 
-  const handleAddApiKey = async (key: string): Promise<{ success: boolean, error?: string }> => {
-    if (apiKeys.includes(key)) return { success: false, error: 'API Key này đã tồn tại trong danh sách.' };
+  const handleAddApiKeys = async (keysToAdd: string[]): Promise<{ successCount: number; errors: { key: string; message: string }[] }> => {
+    let successCount = 0;
+    const errors: { key: string; message: string }[] = [];
+    const newKeys: string[] = [];
+    const batchKeys = new Set<string>();
 
-    try {
-        await validateApiKey(key);
-        // Add new key to the front to make it the active one
-        const updatedKeys = [key, ...apiKeys];
+    for (const key of keysToAdd) {
+        if (!key) continue;
+
+        if (apiKeys.includes(key)) {
+            errors.push({ key, message: 'Đã tồn tại.' });
+            continue;
+        }
+        if (batchKeys.has(key)) {
+            continue;
+        }
+        
+        try {
+            await validateApiKey(key);
+            newKeys.push(key);
+            batchKeys.add(key);
+            successCount++;
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Lỗi không xác định.';
+            errors.push({ key, message });
+        }
+    }
+    
+    if (newKeys.length > 0) {
+        const updatedKeys = [...newKeys, ...apiKeys];
         setApiKeys(updatedKeys);
         localStorage.setItem('gemini-api-keys', JSON.stringify(updatedKeys));
-        return { success: true };
-    } catch (err) {
-        return { success: false, error: err instanceof Error ? err.message : 'Lỗi không xác định khi xác thực key.' };
     }
+
+    return { successCount, errors };
   };
 
   const handleDeleteApiKey = (keyToDelete: string) => {
@@ -160,11 +179,11 @@ const App: React.FC = () => {
     const cachedData: CachedData = {
         visualPrompts: Object.fromEntries(visualPromptsCache),
         allVisualPrompts: allVisualPromptsCache,
-        summarizedScript: summarizedScriptCache,
+        videoPlan: videoPlanCache,
         extractedDialogue: extractedDialogueCache,
         hasExtractedDialogue,
         hasGeneratedAllVisualPrompts,
-        hasSummarizedScript,
+        hasSummarizedScript: hasGeneratedVideoPlan,
     };
 
     const newItem: LibraryItem = {
@@ -180,8 +199,8 @@ const App: React.FC = () => {
     setHasSavedToLibrary(true);
   }, [
     generatedScript, topic, library, visualPromptsCache, allVisualPromptsCache, 
-    summarizedScriptCache, extractedDialogueCache, hasExtractedDialogue, 
-    hasGeneratedAllVisualPrompts, hasSummarizedScript
+    videoPlanCache, extractedDialogueCache, hasExtractedDialogue, 
+    hasGeneratedAllVisualPrompts, hasGeneratedVideoPlan
   ]);
 
   const handleDeleteScript = useCallback((id: number) => {
@@ -200,17 +219,27 @@ const App: React.FC = () => {
     if (item.cachedData) {
         setVisualPromptsCache(new Map(Object.entries(item.cachedData.visualPrompts || {})));
         setAllVisualPromptsCache(item.cachedData.allVisualPrompts);
-        setSummarizedScriptCache(item.cachedData.summarizedScript);
-        setVideoSceneData(item.cachedData.summarizedScript); // also populate video tab data
+        setVideoPlanCache(item.cachedData.videoPlan);
+        setVideoPlanData(item.cachedData.videoPlan); // also populate video tab data
         setExtractedDialogueCache(item.cachedData.extractedDialogue);
         setHasExtractedDialogue(item.cachedData.hasExtractedDialogue);
         setHasGeneratedAllVisualPrompts(item.cachedData.hasGeneratedAllVisualPrompts);
-        setHasSummarizedScript(item.cachedData.hasSummarizedScript);
+        setHasGeneratedVideoPlan(item.cachedData.hasSummarizedScript);
     }
     
     setHasSavedToLibrary(true); // Since it's loaded from the library, it's considered saved.
     setIsLibraryOpen(false);
   }, []);
+  
+  const withApiKeyCheck = <T extends (...args: any[]) => Promise<void>>(fn: T) => {
+    return async (...args: Parameters<T>) => {
+      if (apiKeys.length === 0) {
+        setIsApiKeyModalOpen(true);
+        return;
+      }
+      return fn(...args);
+    };
+  };
 
   const handleGenerateSuggestions = useCallback(async () => {
     if (!topic.trim()) {
@@ -465,21 +494,21 @@ const App: React.FC = () => {
     if (!generatedScript.trim()) return;
     
     // Use cache if available
-    if (summarizedScriptCache) {
-        setVideoSceneData(summarizedScriptCache);
+    if (videoPlanCache) {
+        setVideoPlanData(videoPlanCache);
         setActiveTab('video');
         return;
     }
 
     setIsConvertingToVideo(true);
-    setVideoSceneData(null);
+    setVideoPlanData(null);
     setConversionError(null);
     
     try {
-        const summary = await summarizeScriptForScenes(generatedScript);
-        setVideoSceneData(summary);
-        setSummarizedScriptCache(summary); // Save to cache
-        setHasSummarizedScript(true);
+        const plan = await generateVideoPlan(generatedScript);
+        setVideoPlanData(plan);
+        setVideoPlanCache(plan); // Save to cache
+        setHasGeneratedVideoPlan(true);
         setActiveTab('video'); // Switch to video tab on success
     } catch(err) {
         setConversionError(err instanceof Error ? err.message : 'Lỗi không xác định khi chuyển đổi kịch bản.');
@@ -487,7 +516,7 @@ const App: React.FC = () => {
     } finally {
         setIsConvertingToVideo(false);
     }
-  }, [generatedScript, summarizedScriptCache]);
+  }, [generatedScript, videoPlanCache]);
 
 
   useEffect(() => {
@@ -551,7 +580,7 @@ const App: React.FC = () => {
                 <ControlPanel
                   topic={topic}
                   setTopic={setTopic}
-                  onGenerateSuggestions={handleGenerateSuggestions}
+                  onGenerateSuggestions={withApiKeyCheck(handleGenerateSuggestions)}
                   isSuggesting={isSuggesting}
                   suggestions={topicSuggestions}
                   suggestionError={suggestionError}
@@ -567,9 +596,9 @@ const App: React.FC = () => {
                   setWordCount={setWordCount}
                   scriptParts={scriptParts}
                   setScriptParts={setScriptParts}
-                  onGenerate={handleGenerateScript}
-                  isLoading={isLoading || isSuggesting || isSuggestingKeywords || apiKeys.length === 0}
-                  onGenerateKeywordSuggestions={handleGenerateKeywordSuggestions}
+                  onGenerate={withApiKeyCheck(handleGenerateScript)}
+                  isLoading={isLoading || isSuggesting || isSuggestingKeywords || isSuggestingStyle}
+                  onGenerateKeywordSuggestions={withApiKeyCheck(handleGenerateKeywordSuggestions)}
                   isSuggestingKeywords={isSuggestingKeywords}
                   keywordSuggestions={keywordSuggestions}
                   keywordSuggestionError={keywordSuggestionError}
@@ -577,7 +606,7 @@ const App: React.FC = () => {
                   setScriptType={setScriptType}
                   numberOfSpeakers={numberOfSpeakers}
                   setNumberOfSpeakers={setNumberOfSpeakers}
-                  onSuggestStyle={handleSuggestStyleOptions}
+                  onSuggestStyle={withApiKeyCheck(handleSuggestStyleOptions)}
                   isSuggestingStyle={isSuggestingStyle}
                   styleSuggestionError={styleSuggestionError}
                 />
@@ -588,24 +617,24 @@ const App: React.FC = () => {
                   isLoading={isLoading}
                   error={error}
                   onSaveToLibrary={handleSaveToLibrary}
-                  onStartSequentialGenerate={handleStartSequentialGeneration}
+                  onStartSequentialGenerate={withApiKeyCheck(handleStartSequentialGeneration)}
                   isGeneratingSequentially={isGeneratingSequentially}
-                  onGenerateNextPart={handleGenerateNextPart}
+                  onGenerateNextPart={withApiKeyCheck(handleGenerateNextPart)}
                   currentPart={currentPartIndex}
                   totalParts={outlineParts.length}
                   revisionPrompt={revisionPrompt}
                   setRevisionPrompt={setRevisionPrompt}
-                  onRevise={handleReviseScript}
+                  onRevise={withApiKeyCheck(handleReviseScript)}
                   revisionCount={revisionCount}
-                  onExtractDialogue={handleExtractDialogue}
+                  onExtractDialogue={withApiKeyCheck(handleExtractDialogue)}
                   isExtracting={isExtracting}
-                  onGenerateVisualPrompt={handleGenerateVisualPrompt}
-                  onGenerateAllVisualPrompts={handleGenerateAllVisualPrompts}
+                  onGenerateVisualPrompt={withApiKeyCheck(handleGenerateVisualPrompt)}
+                  onGenerateAllVisualPrompts={withApiKeyCheck(handleGenerateAllVisualPrompts)}
                   isGeneratingAllVisualPrompts={isGeneratingAllVisualPrompts}
-                  onConvertToVideo={handleConvertToVideo}
+                  onConvertToVideo={withApiKeyCheck(handleConvertToVideo)}
                   isConvertingToVideo={isConvertingToVideo}
                   conversionError={conversionError}
-                  hasConvertedToVideo={!!videoSceneData}
+                  hasConvertedToVideo={!!videoPlanData}
                   scriptType={scriptType}
                   hasExtractedDialogue={hasExtractedDialogue}
                   hasGeneratedAllVisualPrompts={hasGeneratedAllVisualPrompts}
@@ -617,7 +646,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'video' && (
-            <VideoGeneratorTab sceneData={videoSceneData} />
+            <VideoGeneratorTab videoPlan={videoPlanData} />
         )}
       </main>
       
@@ -639,8 +668,7 @@ const App: React.FC = () => {
         isOpen={isApiKeyModalOpen}
         onClose={() => setIsApiKeyModalOpen(false)}
         currentApiKeys={apiKeys}
-        onAddKey={handleAddApiKey}
-        // FIX: Corrected function name from handleDeleteKey to handleDeleteApiKey
+        onAddKeys={handleAddApiKeys}
         onDeleteKey={handleDeleteApiKey}
       />
       <VisualPromptModal

@@ -22,14 +22,37 @@ export interface FormattingOptions {
 
 // Data structures
 
+export interface PromptPair {
+  english: string;
+  vietnamese: string;
+}
+
+export interface SceneSummary {
+  sceneNumber: number;
+  detailedDescription: string;
+  imagePrompt: PromptPair;
+  motionPrompt: PromptPair;
+}
+
+export interface ScriptPartSummary {
+  partTitle: string;
+  scenes: SceneSummary[];
+}
+
+export interface VideoPlan {
+  scriptSummary: string;
+  parts: ScriptPartSummary[];
+}
+
+
 export interface CachedData {
   visualPrompts: Record<string, VisualPrompt>;
   allVisualPrompts: AllVisualPromptsResult[] | null;
-  summarizedScript: ScriptPartSummary[] | null;
+  videoPlan: VideoPlan | null;
   extractedDialogue: string | null;
   hasExtractedDialogue: boolean;
   hasGeneratedAllVisualPrompts: boolean;
-  hasSummarizedScript: boolean;
+  hasSummarizedScript: boolean; // This can be deprecated or mapped to hasGeneratedVideoPlan
 }
 
 export interface LibraryItem {
@@ -65,15 +88,4 @@ export interface AllVisualPromptsResult {
 export interface ChatMessage {
   role: 'user' | 'model';
   content: string;
-}
-
-export interface SceneSummary {
-  sceneNumber: number;
-  summary: string;
-  visualPrompt: string;
-}
-
-export interface ScriptPartSummary {
-  partTitle: string;
-  scenes: SceneSummary[];
 }

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { GenerationParams, VisualPrompt, AllVisualPromptsResult, ScriptPartSummary, StyleOptions } from '../types';
+import type { GenerationParams, VisualPrompt, AllVisualPromptsResult, VideoPlan, StyleOptions } from '../types';
 import { TONE_OPTIONS, STYLE_OPTIONS, VOICE_OPTIONS } from '../constants';
 
 // Helper function to handle API errors and provide more specific messages
@@ -541,27 +541,37 @@ export const generateAllVisualPrompts = async (script: string): Promise<AllVisua
     }
 };
 
-export const summarizeScriptForScenes = async (script: string): Promise<ScriptPartSummary[]> => {
+export const generateVideoPlan = async (script: string): Promise<VideoPlan> => {
     const prompt = `
-        You are an expert video production assistant. Your task is to break down the following YouTube script into a series of detailed scenes, each corresponding to an 8-second video clip.
-        The script is organized into main parts using markdown headings (## or ###). For each main part, you must generate multiple short scenes.
+        You are an "Expert Scriptwriter and AI Video Prompt Specialist". Your task is to analyze the following script and break it down into a detailed production plan for an AI video generator. Each scene must be designed for an 8-second video clip.
 
         **Input Script:**
         """
         ${script}
         """
 
-        **Instructions:**
-        1.  Analyze the script section by section.
-        2.  For each main part identified by a heading, create a list of scenes.
-        3.  Each scene must be designed to be approximately 8 seconds long.
-        4.  For each scene, provide:
-            - A short 'summary' in Vietnamese, describing the key action, information, or dialogue for that 8-second segment.
-            - A detailed 'visualPrompt' in English for an AI video generator (like Veo) that visually represents the summary. This prompt should describe the setting, characters, action, mood, and camera style.
-        5.  The final output must be a JSON array. Each object in the array represents a main part of the script and must have a 'partTitle' (the heading text) and a 'scenes' array. Each object in the 'scenes' array must have 'sceneNumber' (starting from 1 for each part), 'summary', and 'visualPrompt'.
+        **Output Requirements:**
+        You must return a single JSON object. The root object must contain:
+        1.  A "scriptSummary" key with a concise Vietnamese summary of the entire script's plot.
+        2.  A "parts" key, which is an array of objects. Each object represents a main part of the script (identified by markdown headings like ## or ###).
+            - Each part object must have a "partTitle" (the heading text) and a "scenes" array.
+            - Each object in the "scenes" array represents a single 8-second clip and MUST contain the following keys:
+                a. "sceneNumber": The sequential number of the scene within the part (starts from 1).
+                b. "detailedDescription": A detailed Vietnamese description of the scene's action, setting, lighting, and camera angles.
+                c. "imagePrompt": An object with "english" and "vietnamese" keys. The "english" prompt is for AI Image Generators (like Whisk, Gemini). It must be highly detailed, optimized for quality (e.g., 8K, Cinematic, Hyper-realistic), and include specific art styles, camera lenses, and lighting.
+                d. "motionPrompt": An object with "english" and "vietnamese" keys. The "english" prompt is for AI Motion Generators (like Veo 3.1). It must describe the exact camera movement (e.g., slow pan left, dolly zoom in), character/object motion (e.g., subtle head turn, leaves rustling), and visual effects (e.g., lens flare, cinematic dust particles) based on the generated image.
 
-        Please generate the JSON array now.
+        Please generate the complete, structured JSON output now.
     `;
+
+    const promptPairSchema = {
+        type: Type.OBJECT,
+        properties: {
+            english: { type: Type.STRING, description: 'The prompt in English.' },
+            vietnamese: { type: Type.STRING, description: 'The Vietnamese translation.' }
+        },
+        required: ['english', 'vietnamese']
+    };
 
     try {
         const ai = getApiClient();
@@ -571,50 +581,58 @@ export const summarizeScriptForScenes = async (script: string): Promise<ScriptPa
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            partTitle: {
-                                type: Type.STRING,
-                                description: "The title of the script part from the heading."
-                            },
-                            scenes: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        sceneNumber: {
-                                            type: Type.NUMBER,
-                                            description: "The sequential number of the scene within the part."
-                                        },
-                                        summary: {
-                                            type: Type.STRING,
-                                            description: "A short summary in Vietnamese for an 8-second clip."
-                                        },
-                                        visualPrompt: {
-                                            type: Type.STRING,
-                                            description: "A detailed visual prompt in English for an AI video generator."
-                                        }
-                                    },
-                                    required: ['sceneNumber', 'summary', 'visualPrompt']
-                                }
-                            }
+                    type: Type.OBJECT,
+                    properties: {
+                        scriptSummary: {
+                            type: Type.STRING,
+                            description: "A concise Vietnamese summary of the entire script's plot."
                         },
-                        required: ['partTitle', 'scenes']
-                    }
+                        parts: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    partTitle: {
+                                        type: Type.STRING,
+                                        description: "The title of the script part from the heading."
+                                    },
+                                    scenes: {
+                                        type: Type.ARRAY,
+                                        items: {
+                                            type: Type.OBJECT,
+                                            properties: {
+                                                sceneNumber: {
+                                                    type: Type.NUMBER,
+                                                    description: "The sequential number of the scene within the part."
+                                                },
+                                                detailedDescription: {
+                                                    type: Type.STRING,
+                                                    description: "A detailed Vietnamese description of the scene's action, setting, lighting, and camera angles."
+                                                },
+                                                imagePrompt: promptPairSchema,
+                                                motionPrompt: promptPairSchema,
+                                            },
+                                            required: ['sceneNumber', 'detailedDescription', 'imagePrompt', 'motionPrompt']
+                                        }
+                                    }
+                                },
+                                required: ['partTitle', 'scenes']
+                            }
+                        }
+                    },
+                    required: ['scriptSummary', 'parts']
                 }
             }
         });
 
         const jsonResponse = JSON.parse(response.text);
-        if (Array.isArray(jsonResponse)) {
-            return jsonResponse as ScriptPartSummary[];
+        if (jsonResponse.scriptSummary && Array.isArray(jsonResponse.parts)) {
+            return jsonResponse as VideoPlan;
         } else {
             throw new Error("AI returned data in an unexpected format.");
         }
     } catch (error) {
-        throw handleApiError(error, 'tóm tắt kịch bản ra các cảnh');
+        throw handleApiError(error, 'tạo kế hoạch video');
     }
 };
 

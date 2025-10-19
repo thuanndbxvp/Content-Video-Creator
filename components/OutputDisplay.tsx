@@ -56,13 +56,18 @@ const InitialState: React.FC = () => (
     <div className="text-text-secondary prose prose-invert max-w-none">
         <h2 className="text-xl font-semibold text-accent mb-4">Chào mừng bạn đến với Trợ lý Sáng tạo Kịch bản!</h2>
         <p>Công cụ này được thiết kế để giúp bạn biến những ý tưởng sơ khai thành các kịch bản hoàn chỉnh, hấp dẫn và nhất quán. Dù bạn là một YouTuber dày dặn kinh nghiệm hay một Podcaster đầy tham vọng, Trợ lý AI sẽ là người đồng hành đắc lực của bạn.</p>
-        <h3 className="text-lg font-semibold mt-6 mb-3 text-accent/90">Hướng dẫn sử dụng</h3>
+        
+        <div className="mt-6 p-4 bg-primary/50 border border-secondary rounded-lg">
+            <h3 className="text-md font-semibold text-amber-400 mb-2">Lưu ý Quan trọng</h3>
+            <p className="text-sm">Mọi tính năng tạo nội dung bằng AI (tạo kịch bản, gợi ý, sửa đổi...) đều yêu cầu bạn phải cung cấp <strong>API Key từ Google Gemini</strong>. Hãy nhấp vào nút "<strong>API</strong>" ở góc trên bên phải để thêm key của bạn.</p>
+        </div>
+
+        <h3 className="text-lg font-semibold mt-6 mb-3 text-accent/90">Các bước bắt đầu</h3>
         <ol className="list-decimal list-inside space-y-3">
-            <li><strong>Cài đặt API Key:</strong> Lần đầu sử dụng, hãy nhấp vào nút <strong>"API"</strong> ở góc trên bên phải để thêm API Key Gemini của bạn.</li>
-            <li><strong>Nhập Chủ đề:</strong> Bắt đầu bằng cách nhập ý tưởng chính của bạn vào ô "Chủ đề". Nếu bạn đang bí ý tưởng, hãy thử tính năng <strong>"Gợi ý từ AI"</strong>.</li>
+            <li><strong>Nhập Chủ đề:</strong> Bắt đầu bằng cách nhập ý tưởng chính của bạn vào ô "Chủ đề". Nếu bạn đang bí ý tưởng, hãy thử tính năng <strong>"Brainstorm Ý Tưởng với AI"</strong> hoặc <strong>"Gợi ý từ AI"</strong>.</li>
             <li><strong>Chọn Định dạng:</strong> Chọn giữa <strong>"Video YouTube"</strong> hoặc <strong>"Podcast"</strong>. Các tùy chọn sẽ tự động điều chỉnh cho phù hợp.</li>
-            <li><strong>Tinh chỉnh & Tạo:</strong> Lựa chọn ngôn ngữ, phong cách, cấu trúc và nhấn <strong>"Tạo kịch bản"</strong>.</li>
-            <li><strong>Sử dụng các công cụ khác:</strong> Dễ dàng <strong>Sửa đổi</strong> kịch bản, <strong>Tách lời thoại</strong> cho việc thu âm, và <strong>Lưu trữ</strong> trong thư viện cá nhân.</li>
+            <li><strong>Tinh chỉnh & Tạo:</strong> Lựa chọn ngôn ngữ, phong cách, cấu trúc và nhấn <strong>"Tạo kịch bản"</strong>. Nếu chưa có API Key, ứng dụng sẽ yêu cầu bạn thêm vào lúc này.</li>
+            <li><strong>Sử dụng các công cụ khác:</strong> Sau khi có kịch bản, bạn có thể dễ dàng <strong>Sửa đổi</strong>, <strong>Tách lời thoại</strong> để thu âm, tạo <strong>Prompts Ảnh/Video</strong>, và <strong>Lưu trữ</strong> trong thư viện cá nhân.</li>
         </ol>
         <p className="mt-8 text-center font-semibold text-text-primary text-base">
             Hãy điền thông tin ở cột trái và nhấn "Tạo kịch bản" để bắt đầu hành trình sáng tạo của bạn!
