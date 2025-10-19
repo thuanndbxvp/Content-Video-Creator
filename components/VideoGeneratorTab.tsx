@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import type { VideoPlan, PromptPair } from '../types';
+import type { VideoPlan } from '../types';
 import { FilmIcon } from './icons/FilmIcon';
 import { ClipboardIcon } from './icons/ClipboardIcon';
+import { CameraIcon } from './icons/CameraIcon';
 
 interface VideoGeneratorTabProps {
   videoPlan: VideoPlan | null;
@@ -35,7 +36,7 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
     return (
         <button
             onClick={handleCopy}
-            className="absolute top-2 right-2 flex items-center space-x-1 bg-primary/70 hover:bg-primary text-text-secondary px-2 py-1 rounded-md text-xs font-semibold transition opacity-50 hover:opacity-100"
+            className="absolute top-2 right-2 flex items-center space-x-1 bg-primary/70 hover:bg-primary text-text-secondary px-2 py-1 rounded-md text-xs font-semibold transition opacity-50 hover:opacity-100 focus:opacity-100"
             aria-label="Sao chép prompt"
         >
             <ClipboardIcon className="w-3 h-3" />
@@ -43,18 +44,6 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
         </button>
     );
 };
-
-const PromptDisplay: React.FC<{ prompt: PromptPair, title: string }> = ({ prompt, title }) => (
-    <div className="space-y-2">
-        <h4 className="text-xs font-bold text-accent">{title}</h4>
-        <div className="relative">
-            <p className="text-xs font-mono bg-primary/70 p-2 pr-12 rounded border border-secondary text-text-primary/90 whitespace-pre-wrap">{prompt.english}</p>
-            <CopyButton text={prompt.english} />
-        </div>
-        <p className="text-xs italic text-text-secondary/80 mt-1 pl-2 border-l-2 border-secondary/50">{prompt.vietnamese}</p>
-    </div>
-);
-
 
 export const VideoGeneratorTab: React.FC<VideoGeneratorTabProps> = ({ videoPlan }) => {
   if (!videoPlan || videoPlan.parts.length === 0) {
@@ -71,37 +60,53 @@ export const VideoGeneratorTab: React.FC<VideoGeneratorTabProps> = ({ videoPlan 
         <p className="text-sm text-text-secondary mt-3 text-right">Tổng thời lượng dự kiến: <span className="font-bold text-text-primary">{totalScenes * 8} giây</span> ({totalScenes} cảnh)</p>
       </div>
 
-      <div className="space-y-8">
-        {videoPlan.parts.map((part, index) => (
-          <div key={index}>
-            <h3 className="text-xl font-bold text-accent/90 mb-4 border-b-2 border-accent/30 pb-2">{part.partTitle}</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] border-collapse text-sm">
-                <thead className="bg-primary/50 text-left">
-                  <tr>
-                    <th className="p-3 w-[80px] font-semibold text-text-primary">STT/Phân cảnh</th>
-                    <th className="p-3 w-[100px] font-semibold text-text-primary">Thời gian</th>
-                    <th className="p-3 w-[25%] font-semibold text-text-primary">Mô tả Kịch bản Chi tiết</th>
-                    <th className="p-3 w-[35%] font-semibold text-text-primary">Prompt Tạo Ảnh (Whisk, Gemini)</th>
-                    <th className="p-3 w-[35%] font-semibold text-text-primary">Prompt Tạo Chuyển động (Veo 3.1)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {part.scenes.map(scene => (
-                    <tr key={scene.sceneNumber} className="border-b border-primary/80 hover:bg-primary/40 transition-colors">
-                      <td className="p-3 align-top text-center font-bold text-text-primary">{scene.sceneNumber}</td>
-                      <td className="p-3 align-top text-center font-semibold text-text-secondary">8 giây</td>
-                      <td className="p-3 align-top text-text-secondary">{scene.detailedDescription}</td>
-                      <td className="p-3 align-top">
-                        <PromptDisplay prompt={scene.imagePrompt} title="Prompt Ảnh" />
-                      </td>
-                      <td className="p-3 align-top">
-                        <PromptDisplay prompt={scene.motionPrompt} title="Prompt Chuyển động" />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <div className="space-y-10">
+        {videoPlan.parts.map((part, partIndex) => (
+          <div key={partIndex}>
+            <h3 className="text-2xl font-bold text-accent/90 mb-4 border-b-2 border-accent/30 pb-2">{part.partTitle}</h3>
+            <div className="space-y-6">
+              {part.scenes.map(scene => (
+                <div key={scene.sceneNumber} className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-primary/40 p-4 rounded-lg border border-secondary/50">
+                  <div className="lg:col-span-2 flex flex-col items-center text-center">
+                      <p className="font-bold text-accent text-xl">Cảnh {partIndex + 1}.{scene.sceneNumber}</p>
+                      <p className="text-sm text-text-secondary mb-3">~8 giây</p>
+                      <div className="w-full aspect-video bg-primary flex items-center justify-center rounded-md border border-secondary">
+                          <FilmIcon className="w-12 h-12 text-secondary" />
+                      </div>
+                  </div>
+
+                  <div className="lg:col-span-3">
+                       <h4 className="text-base font-semibold text-text-primary mb-2">Mô tả Kịch bản</h4>
+                       <p className="text-sm text-text-secondary leading-relaxed">{scene.detailedDescription}</p>
+                  </div>
+
+                  <div className="lg:col-span-7 space-y-4">
+                      <div>
+                          <h4 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
+                              <CameraIcon className="w-5 h-5 text-accent" />
+                              Prompt Tạo Ảnh (Frame đầu)
+                          </h4>
+                          <div className="relative">
+                              <textarea readOnly rows={4} className="w-full text-xs font-mono bg-primary/70 p-3 pr-20 rounded border border-secondary text-text-primary/90 resize-y focus:ring-1 focus:ring-accent transition-shadow">{scene.imagePrompt.english}</textarea>
+                              <CopyButton text={scene.imagePrompt.english} />
+                          </div>
+                          <p className="text-xs italic text-text-secondary/80 mt-1 pl-2 border-l-2 border-secondary/50">{scene.imagePrompt.vietnamese}</p>
+                      </div>
+
+                      <div>
+                          <h4 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
+                             <FilmIcon className="w-5 h-5 text-accent" />
+                             Prompt Chuyển động (Video 8s)
+                          </h4>
+                           <div className="relative">
+                              <textarea readOnly rows={4} className="w-full text-xs font-mono bg-primary/70 p-3 pr-20 rounded border border-secondary text-text-primary/90 resize-y focus:ring-1 focus:ring-accent transition-shadow">{scene.motionPrompt.english}</textarea>
+                              <CopyButton text={scene.motionPrompt.english} />
+                           </div>
+                          <p className="text-xs italic text-text-secondary/80 mt-1 pl-2 border-l-2 border-secondary/50">{scene.motionPrompt.vietnamese}</p>
+                      </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
